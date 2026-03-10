@@ -1,3 +1,5 @@
+import { supabase } from "../supabase.js";
+
 const barcos = [
   {
     id: 1,
@@ -86,8 +88,40 @@ itemsMenu.forEach((item, indice) => {
 
 // ===== VISTAS =====
 
-function mostrarFlota() {
+async function mostrarFlota() {
   const contenido = document.querySelector(".contenido");
+  contenido.innerHTML = `<p style="color:#64748b;padding:20px">Cargando embarcaciones...</p>`;
+
+  const { data: barcosDB, error } = await supabase
+    .from("barcos")
+    .select("*, cargas(*)");
+
+  if (error) {
+    contenido.innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+    return;
+  }
+
+  // Actualiza también el array global para que funcionen manifiestos y vista cliente
+  barcos.length = 0;
+  barcosDB.forEach((b) => {
+    barcos.push({
+      id: b.id,
+      nombre: b.nombre,
+      icono: b.icono,
+      estado: b.estado,
+      origen: b.origen,
+      destino: b.destino,
+      eta: b.eta,
+      capacidadTotal: b.capacidad_total,
+      capacidadUsada: b.capacidad_usada,
+      cargas: b.cargas.map((c) => ({
+        cliente: c.cliente,
+        tipo: c.tipo,
+        peso: c.peso,
+        guia: c.guia,
+      })),
+    });
+  });
 
   let tarjetas = "";
 
@@ -95,7 +129,6 @@ function mostrarFlota() {
     const porcentaje = Math.round((barco.capacidadUsada / barco.capacidadTotal) * 100);
     const libre = barco.capacidadTotal - barco.capacidadUsada;
 
-    // Construye la lista de cargas del barco
     let listaCargass = "";
     barco.cargas.forEach((carga) => {
       listaCargass += `
@@ -417,55 +450,67 @@ function mostrarNuevoZarpe() {
   `;
 }
 
-function registrarZarpe() {
-  // Lee los valores que escribió el usuario
-  const nombre   = document.getElementById("inp-nombre").value.trim();
-  const origen   = document.getElementById("inp-origen").value;
-  const destino  = document.getElementById("inp-destino").value;
+async function registrarZarpe() {
+  const nombre    = document.getElementById("inp-nombre").value.trim();
+  const origen    = document.getElementById("inp-origen").value;
+  const destino   = document.getElementById("inp-destino").value;
   const capacidad = Number(document.getElementById("inp-capacidad").value);
-  const eta      = document.getElementById("inp-eta").value;
-  const cliente  = document.getElementById("inp-cliente").value.trim();
-  const tipo     = document.getElementById("inp-tipo").value;
-  const peso     = Number(document.getElementById("inp-peso").value);
-  const guia     = document.getElementById("inp-guia").value.trim();
+  const eta       = document.getElementById("inp-eta").value;
+  const cliente   = document.getElementById("inp-cliente").value.trim();
+  const tipo      = document.getElementById("inp-tipo").value;
+  const peso      = Number(document.getElementById("inp-peso").value);
+  const guia      = document.getElementById("inp-guia").value.trim();
 
-  // Validación — verifica que no quede nada vacío
   if (!nombre || !origen || !destino || !capacidad || !eta || !cliente || !tipo || !peso || !guia) {
     const error = document.getElementById("mensaje-error");
     error.textContent = "⚠️ Por favor completa todos los campos obligatorios.";
     error.style.display = "block";
-    return; // Para aquí, no sigue
+    return;
   }
 
-  // Crea el nuevo barco con los datos del formulario
-  const nuevoBarco = {
-    id: barcos.length + 1,
-    nombre: nombre,
-    icono: "🚢",
-    estado: "cargando",
-    origen: origen,
-    destino: destino,
-    eta: eta,
-    capacidadTotal: capacidad,
-    capacidadUsada: peso,
-    cargas: [
-      {
-        cliente: cliente,
-        tipo: tipo,
-        peso: peso,
-        guia: guia,
-      }
-    ],
-  };
+  // Guarda el barco en Supabase
+  const { data: barcoNuevo, error: errorBarco } = await supabase
+    .from("barcos")
+    .insert({
+      nombre: nombre,
+      icono: "🚢",
+      estado: "cargando",
+      origen: origen,
+      destino: destino,
+      eta: eta,
+      capacidad_total: capacidad,
+      capacidad_usada: peso,
+    })
+    .select()
+    .single();
 
-  // Agrega el nuevo barco al array principal
-  barcos.push(nuevoBarco);
+  if (errorBarco) {
+    const errorDiv = document.getElementById("mensaje-error");
+    errorDiv.textContent = "❌ Error al guardar: " + errorBarco.message;
+    errorDiv.style.display = "block";
+    return;
+  }
 
-  // Muestra mensaje de éxito y va a la flota
+  // Guarda la carga asociada al barco
+  const { error: errorCarga } = await supabase
+    .from("cargas")
+    .insert({
+      barco_id: barcoNuevo.id,
+      cliente: cliente,
+      tipo: tipo,
+      peso: peso,
+      guia: guia,
+    });
+
+  if (errorCarga) {
+    const errorDiv = document.getElementById("mensaje-error");
+    errorDiv.textContent = "❌ Error al guardar carga: " + errorCarga.message;
+    errorDiv.style.display = "block";
+    return;
+  }
+
   alert(`✅ Zarpe registrado. ${nombre} aparece ahora en la flota.`);
   mostrarFlota();
-
-  // Marca Flota como activo en el menú
   itemsMenu.forEach((i) => i.classList.remove("activo"));
   itemsMenu[0].classList.add("activo");
 }
@@ -650,3 +695,13 @@ function copiarLink(guia) {
 
 // Muestra la flota al cargar la página
 mostrarFlota();
+
+// Expone las funciones al HTML
+window.mostrarFlota = mostrarFlota;
+window.mostrarManifiestos = mostrarManifiestos;
+window.mostrarNuevoZarpe = mostrarNuevoZarpe;
+window.mostrarCliente = mostrarCliente;
+window.registrarZarpe = registrarZarpe;
+window.verDetalle = verDetalle;
+window.verSeguimientoCliente = verSeguimientoCliente;
+window.copiarLink = copiarLink;
