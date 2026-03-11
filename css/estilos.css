@@ -556,3 +556,14 @@ body {
   color: #64748b;
   line-height: 1.6;
 }
+
+.select-estado {
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  cursor: pointer;
+  outline: none;
+  color: #0d1b2a;
+}

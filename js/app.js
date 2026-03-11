@@ -101,6 +101,7 @@ itemsMenu.forEach((item, indice) => {
     if (indice === 1) mostrarManifiestos();
     if (indice === 2) mostrarNuevoZarpe();
     if (indice === 3) mostrarCliente();
+    if (indice === 4)mostrarUsuarios();
   });
 });
 
@@ -167,8 +168,15 @@ async function mostrarFlota() {
             <div class="barco-nombre">${barco.nombre}</div>
             <div class="barco-ruta">${barco.origen} → ${barco.destino} · ETA ${barco.eta}</div>
           </div>
-          <span class="estado-badge estado-${barco.estado}">${barco.estado}</span>
-        </div>
+<div style="display:flex;gap:8px;align-items:center">
+  <span class="estado-badge estado-${barco.estado}">${barco.estado}</span>
+  <select class="select-estado" onchange="cambiarEstado(${barco.id}, this.value)">
+    <option value="navegando" ${barco.estado === 'navegando' ? 'selected' : ''}>Navegando</option>
+    <option value="cargando" ${barco.estado === 'cargando' ? 'selected' : ''}>Cargando</option>
+    <option value="atracado" ${barco.estado === 'atracado' ? 'selected' : ''}>Atracado</option>
+    <option value="alerta" ${barco.estado === 'alerta' ? 'selected' : ''}>Alerta</option>
+  </select>
+</div>        </div>
         <div class="barco-capacidad">
           <div class="cap-texto">
             <span>Carga: ${barco.capacidadUsada}t / ${barco.capacidadTotal}t</span>
@@ -720,6 +728,160 @@ async function cerrarSesion() {
   window.location.href = "login.html";
 }
 
+async function cambiarEstado(barcoId, nuevoEstado) {
+  const { error } = await supabase
+    .from("barcos")
+    .update({ estado: nuevoEstado })
+    .eq("id", barcoId);
+
+  if (error) {
+    alert("Error al actualizar: " + error.message);
+    return;
+  }
+
+  // Recarga la flota para mostrar el cambio
+  mostrarFlota();
+}
+
+function mostrarUsuarios() {
+  const contenido = document.querySelector(".contenido");
+
+  contenido.innerHTML = `
+    <div class="seccion-header">
+      <div>
+        <h1>Usuarios</h1>
+        <p>Gestiona los accesos al sistema</p>
+      </div>
+    </div>
+
+    <div class="formulario-grid">
+      <div class="form-card">
+        <div class="form-card-titulo">➕ Crear nuevo usuario</div>
+
+        <div class="form-grupo">
+          <label class="form-label">Nombre completo</label>
+          <input type="text" id="usr-nombre" class="form-input" placeholder="Ej: Carlos Pérez">
+        </div>
+
+        <div class="form-grupo">
+          <label class="form-label">Correo electrónico</label>
+          <input type="email" id="usr-email" class="form-input" placeholder="correo@naviera.cl">
+        </div>
+
+        <div class="form-grupo">
+          <label class="form-label">Contraseña temporal</label>
+          <input type="text" id="usr-password" class="form-input" placeholder="Mínimo 6 caracteres">
+        </div>
+
+        <div class="form-fila">
+          <div class="form-grupo">
+            <label class="form-label">Rol</label>
+            <select id="usr-rol" class="form-select">
+              <option value="capitan">Capitán</option>
+              <option value="operador">Operador</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="form-grupo">
+            <label class="form-label">Naviera</label>
+            <input type="text" id="usr-naviera" class="form-input" placeholder="Ej: Naviera Austral">
+          </div>
+        </div>
+
+        <div id="usr-mensaje" class="mensaje-error" style="display:none"></div>
+
+        <button class="btn-registrar" onclick="crearUsuario()">✅ Crear usuario</button>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-titulo">👥 Usuarios registrados</div>
+        <div id="lista-usuarios">
+          <p style="color:#94a3b8;font-size:13px">Cargando...</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  cargarUsuarios();
+}
+
+async function cargarUsuarios() {
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return;
+
+  let filas = "";
+  data.forEach((u) => {
+    filas += `
+      <div class="detalle-fila">
+        <div>
+          <div style="font-weight:700;font-size:13px">${u.nombre}</div>
+          <div style="font-size:11px;color:#94a3b8">${u.naviera} · ${u.rol}</div>
+        </div>
+        <span class="tipo-badge">${u.rol}</span>
+      </div>
+    `;
+  });
+
+  document.getElementById("lista-usuarios").innerHTML = filas || 
+    `<p style="color:#94a3b8;font-size:13px">No hay usuarios aún.</p>`;
+}
+
+async function crearUsuario() {
+  const nombre   = document.getElementById("usr-nombre").value.trim();
+  const email    = document.getElementById("usr-email").value.trim();
+  const password = document.getElementById("usr-password").value;
+  const rol      = document.getElementById("usr-rol").value;
+  const naviera  = document.getElementById("usr-naviera").value.trim();
+  const msgDiv   = document.getElementById("usr-mensaje");
+
+  if (!nombre || !email || !password || !naviera) {
+    msgDiv.textContent = "⚠️ Completa todos los campos.";
+    msgDiv.style.display = "block";
+    return;
+  }
+
+  // Crea el usuario en Supabase Auth
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { nombre, rol, naviera }
+    }
+  });
+
+  if (error) {
+    msgDiv.textContent = "❌ Error: " + error.message;
+    msgDiv.style.display = "block";
+    return;
+  }
+
+  // Crea el perfil en la tabla perfiles
+  await supabase.from("perfiles").insert({
+    id: data.user.id,
+    nombre,
+    rol,
+    naviera,
+  });
+
+  msgDiv.style.background = "#dcfce7";
+  msgDiv.style.borderColor = "#86efac";
+  msgDiv.style.color = "#15803d";
+  msgDiv.textContent = `✅ Usuario ${nombre} creado. Le llegará un email de confirmación.`;
+  msgDiv.style.display = "block";
+
+  // Limpia el formulario
+  document.getElementById("usr-nombre").value = "";
+  document.getElementById("usr-email").value = "";
+  document.getElementById("usr-password").value = "";
+  document.getElementById("usr-naviera").value = "";
+
+  cargarUsuarios();
+}
+
 // Expone las funciones al HTML
 window.mostrarFlota = mostrarFlota;
 window.mostrarManifiestos = mostrarManifiestos;
@@ -729,4 +891,5 @@ window.registrarZarpe = registrarZarpe;
 window.verDetalle = verDetalle;
 window.verSeguimientoCliente = verSeguimientoCliente;
 window.copiarLink = copiarLink;
-window.cerrarSesion = cerrarSesion;
+window.mostrarUsuarios = mostrarUsuarios;
+window.crearUsuario = crearUsuario;

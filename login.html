@@ -93,6 +93,19 @@
 
     .btn-login:hover { background: #1e3a5f; }
 
+    .btn-olvide {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #0369a1;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      font-family: 'Barlow', sans-serif;
+      text-decoration: underline;
+    }
+
     .mensaje-error {
       background: #fee2e2;
       border: 1px solid #fca5a5;
@@ -131,6 +144,7 @@
   </div>
 
   <button class="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+  <button class="btn-olvide" onclick="olvidePassword()">Olvidé mi contraseña</button>
 
   <div class="mensaje-error" id="mensaje-error"></div>
 
@@ -169,6 +183,34 @@
     // Login exitoso — va al panel
     window.location.href = "index.html";
   }
+
+  window.olvidePassword = async function() {
+    const email = document.getElementById("inp-email").value.trim();
+    const errorDiv = document.getElementById("mensaje-error");
+
+    if (!email) {
+      errorDiv.textContent = "⚠️ Ingresa tu correo primero.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://cargas-frasal.vercel.app/login.html"
+    });
+
+    if (error) {
+      errorDiv.textContent = "❌ Error: " + error.message;
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    errorDiv.style.background = "#dcfce7";
+    errorDiv.style.borderColor = "#86efac";
+    errorDiv.style.color = "#15803d";
+    errorDiv.textContent = "✅ Te enviamos un email para restablecer tu contraseña.";
+    errorDiv.style.display = "block";
+} 
+
 </script>
 
 </body>
