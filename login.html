@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CargaNav — Iniciar sesión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: #0d1b2a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-box {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    .login-logo {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .login-titulo {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .login-sub {
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+    }
+
+    .form-grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+    }
+
+    .form-input {
+      padding: 11px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Barlow', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: #0369a1;
+      box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+    }
+
+    .btn-login {
+      width: 100%;
+      background: #0d1b2a;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Barlow', sans-serif;
+      transition: background 0.15s;
+      margin-top: 8px;
+    }
+
+    .btn-login:hover { background: #1e3a5f; }
+
+    .mensaje-error {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .login-footer {
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-box">
+  <div class="login-logo">🚢</div>
+  <div class="login-titulo">CargaNav</div>
+  <div class="login-sub">Panel de gestión de carga marítima</div>
+
+  <div class="form-grupo">
+    <label class="form-label">Correo electrónico</label>
+    <input type="email" id="inp-email" class="form-input" placeholder="correo@naviera.cl">
+  </div>
+
+  <div class="form-grupo">
+    <label class="form-label">Contraseña</label>
+    <input type="password" id="inp-password" class="form-input" placeholder="••••••••">
+  </div>
+
+  <button class="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+
+  <div class="mensaje-error" id="mensaje-error"></div>
+
+  <div class="login-footer">
+    Puerto Montt · Chile 🇨🇱
+  </div>
+</div>
+
+<script type="module" src="supabase.js"></script>
+<script type="module">
+  import { supabase } from "./supabase.js";
+
+  // Si ya hay sesión activa va directo al panel
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) window.location.href = "index.html";
+
+  window.iniciarSesion = async function() {
+    const email    = document.getElementById("inp-email").value.trim();
+    const password = document.getElementById("inp-password").value;
+    const errorDiv = document.getElementById("mensaje-error");
+
+    if (!email || !password) {
+      errorDiv.textContent = "⚠️ Ingresa tu correo y contraseña.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      errorDiv.textContent = "❌ Correo o contraseña incorrectos.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    // Login exitoso — va al panel
+    window.location.href = "index.html";
+  }
+</script>
+
+</body>
+</html>

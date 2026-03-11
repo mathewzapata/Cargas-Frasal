@@ -1,5 +1,24 @@
 import { supabase } from "../supabase.js";
 
+// Verifica que haya sesión activa
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) window.location.href = "login.html";
+
+// Guarda el usuario actual
+const usuarioActual = session?.user;
+
+// Muestra el nombre del usuario en el topbar
+const { data: perfil } = await supabase
+  .from("perfiles")
+  .select("*")
+  .eq("id", usuarioActual.id)
+  .single();
+
+if (perfil) {
+  document.getElementById("usuario-info").textContent =
+    `${perfil.nombre} · ${perfil.naviera}`;
+}
+
 const barcos = [
   {
     id: 1,
@@ -696,6 +715,11 @@ function copiarLink(guia) {
 // Muestra la flota al cargar la página
 mostrarFlota();
 
+async function cerrarSesion() {
+  await supabase.auth.signOut();
+  window.location.href = "login.html";
+}
+
 // Expone las funciones al HTML
 window.mostrarFlota = mostrarFlota;
 window.mostrarManifiestos = mostrarManifiestos;
@@ -705,3 +729,4 @@ window.registrarZarpe = registrarZarpe;
 window.verDetalle = verDetalle;
 window.verSeguimientoCliente = verSeguimientoCliente;
 window.copiarLink = copiarLink;
+window.cerrarSesion = cerrarSesion;
